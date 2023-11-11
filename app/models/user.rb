@@ -56,75 +56,13 @@ class User < ApplicationRecord
 
   # User#discover: returns rows from the photos table associated to this user through its leaders (the leaders' liked_photos)
 
-  def comments
-    my_id = self.id
-
-    matching_comments = Comment.where({ :author_id => my_id })
-
-    return matching_comments
-  end
-
-  def own_photos
-    my_id = self.id
-
-    matching_photos = Photo.where({ :owner_id => my_id })
-
-    return matching_photos
-  end
-
-  def likes
-    my_id = self.id
-
-    matching_likes = Like.where({ :fan_id => my_id })
-
-    return matching_likes
-  end
-
-  def liked_photos
-    my_likes = self.likes
-    
-    array_of_photo_ids = Array.new
-
-    my_likes.each do |a_like|
-      array_of_photo_ids.push(a_like.photo_id)
-    end
-
-    matching_photos = Photo.where({ :id => array_of_photo_ids })
-
-    return matching_photos
-  end
-
-  def commented_photos
-    my_comments = self.comments
-    
-    array_of_photo_ids = Array.new
-
-    my_comments.each do |a_comment|
-      array_of_photo_ids.push(a_comment.photo_id)
-    end
-
-    matching_photos = Photo.where({ :id => array_of_photo_ids })
-
-    unique_matching_photos = matching_photos.distinct
-
-    return unique_matching_photos
-  end
-
-  def sent_follow_requests
-    my_id = self.id
-
-    matching_follow_requests = FollowRequest.where({ :sender_id => my_id })
-
-    return matching_follow_requests
-  end
-
-  def received_follow_requests
-    my_id = self.id
-
-    matching_follow_requests = FollowRequest.where({ :recipient_id => my_id })
-
-    return matching_follow_requests
-  end
+  has_many(:comments, class_name: "Comment", foreign_key: "author_id")
+  has_many(:own_photos, class_name: "Photo", foreign_key: "owner_id")
+  has_many(:likes, class_name: "Like", foreign_key: "fan_id")
+  has_many(:liked_photos, through: :likes, source: :photo)
+  has_many(:commented_photos, through: :comments, source: :photo)
+  has_many(:sent_follow_requests, class_name: "FollowRequest", foreign_key: "sender_id")
+  has_many(:received_follow_requests, class_name: "FollowRequest", foreign_key: "recipient_id")
 
   def accepted_sent_follow_requests
     my_sent_follow_requests = self.sent_follow_requests
@@ -142,67 +80,8 @@ class User < ApplicationRecord
     return matching_follow_requests
   end
 
-  def followers
-    my_accepted_received_follow_requests = self.accepted_received_follow_requests
-    
-    array_of_user_ids = Array.new
-
-    my_accepted_received_follow_requests.each do |a_follow_request|
-      array_of_user_ids.push(a_follow_request.sender_id)
-    end
-
-    matching_users = User.where({ :id => array_of_user_ids })
-
-    return matching_users
-  end
-
-  def leaders
-    my_accepted_sent_follow_requests = self.accepted_sent_follow_requests
-    
-    array_of_user_ids = Array.new
-
-    my_accepted_sent_follow_requests.each do |a_follow_request|
-      array_of_user_ids.push(a_follow_request.recipient_id)
-    end
-
-    matching_users = User.where({ :id => array_of_user_ids })
-
-    return matching_users
-  end
-
-  def feed
-    array_of_photo_ids = Array.new
-
-    my_leaders = self.leaders
-    
-    my_leaders.each do |a_user|
-      leader_own_photos = a_user.own_photos
-
-      leader_own_photos.each do |a_photo|
-        array_of_photo_ids.push(a_photo.id)
-      end
-    end
-
-    matching_photos = Photo.where({ :id => array_of_photo_ids })
-
-    return matching_photos
-  end
-
-  def discover
-    array_of_photo_ids = Array.new
-
-    my_leaders = self.leaders
-    
-    my_leaders.each do |a_user|
-      leader_liked_photos = a_user.liked_photos
-
-      leader_liked_photos.each do |a_photo|
-        array_of_photo_ids.push(a_photo.id)
-      end
-    end
-
-    matching_photos = Photo.where({ :id => array_of_photo_ids })
-
-    return matching_photos
-  end
+  has_many(:followers, through: :accepted_sent_follow_requests, source: :sender)
+  has_many(:leaders, through: :accepted_sent_follow_requests, source: :recipient)
+  has_many(:feed, through: :leaders, source: :own_photos)
+  has_many(:discover, through: :leaders, source: :liked_photos)
 end
